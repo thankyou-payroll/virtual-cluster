@@ -1,0 +1,15 @@
+nodes:
+  - address: 192.168.50.11
+    user: vagrant
+    role: [controlplane, worker, etcd]
+  - address: 192.168.50.12
+    user: vagrant
+    role: [controlplane, worker, etcd]
+  - address: 192.168.50.11
+    user: vagrant
+    role: [controlplane, worker, etcd]
+services:
+  etcd:
+    snapshot: true
+    creation: 6h
+    retention: 24h

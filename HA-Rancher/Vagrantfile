@@ -1,0 +1,38 @@
+$nodescript = <<SCRIPT
+yum install iscsi-initiator-utils
+curl -L https://get.docker.com | bash
+systemctl start docker
+systemctl enable docker
+systemctl disable firewalld
+systemctl stop firewalld
+usermod -aG docker vagrant
+SCRIPT
+nodes = 3
+
+def createVM(config, hostname, ip, script, sync_folder='')
+    config.vm.define hostname do |node|
+        node.vm.box = "centos/7"
+        node.vm.hostname = hostname
+        node.vm.network "private_network", ip: ip
+        if not sync_folder.empty?
+            node.vm.synced_folder sync_folder, "/volumes", :create => true
+        end
+        
+        node.disksize.size = '50GB'
+        node.vm.provision "shell", inline: script
+        node.vm.provider "virtualbox" do |vb|
+            vb.memory = "1024"
+            vb.cpus = "2"
+        end
+    end
+end
+
+Vagrant.configure(2) do |config|
+  nodes.times do |i| 
+    id =  i + 1
+    hostname =  "node-%02d" % id
+    ip =  "192.168.50.%02d" % (10 + id)
+    createVM(config, hostname, ip, $nodescript)
+  end
+end
+  

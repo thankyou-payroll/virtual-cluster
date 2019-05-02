@@ -1,0 +1,49 @@
+$nodescript = <<SCRIPT
+yum install iscsi-initiator-utils
+curl -L https://get.docker.com | bash
+systemctl start docker
+systemctl enable docker
+systemctl disable firewalld
+systemctl stop firewalld
+usermod -aG docker vagrant
+SCRIPT
+$nfsscript = <<SCRIPT
+curl -L https://get.docker.com | bash
+systemctl start docker
+systemctl enable docker
+systemctl disable firewalld
+systemctl stop firewalld
+usermod -aG docker vagrant
+docker run -d -p 2049:2049 --name nfs --privileged -v /volumes:/nfsshare -e SHARED_DIRECTORY=/nfsshare itsthenetwork/nfs-server-alpine:latest
+SCRIPT
+nodes = 2
+
+def createVM(config, hostname, ip, script, sync_folder='')
+    config.vm.define hostname do |node|
+        node.vm.box = "centos/7"
+        node.vm.hostname = hostname
+        node.vm.network "private_network", ip: ip
+        if not sync_folder.empty?
+            node.vm.synced_folder sync_folder, "/volumes", :create => true
+        end
+        
+        node.disksize.size = '50GB'
+        node.vm.provision "shell", inline: script
+        node.vm.provider "virtualbox" do |vb|
+            vb.memory = "1024"
+            vb.cpus = "2"
+        end
+    end
+end
+
+Vagrant.configure(2) do |config|
+  createVM(config, 'nfs', "192.168.50.100", $nfsscript, "volumes/nfs")
+  createVM(config, 'master', "192.168.50.10", $nodescript)
+  nodes.times do |i| 
+    id =  i + 1
+    hostname =  "node-%02d" % id
+    ip =  "192.168.50.%02d" % (10 + id)
+    createVM(config, hostname, ip, $nodescript)
+  end
+end
+  
